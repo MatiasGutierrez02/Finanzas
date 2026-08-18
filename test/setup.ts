@@ -1,0 +1,9 @@
+import 'fake-indexeddb/auto';
+
+import { config } from '@vue/test-utils';
+
+config.global.stubs = {
+  transition: false,
+  'router-link': true,
+  'router-view': true,
+};

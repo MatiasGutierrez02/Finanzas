@@ -1,0 +1,64 @@
+// app global css
+:root {
+  --app-background: #f6f7fb;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f1f4fa;
+  --app-text: #182033;
+  --app-muted: #687086;
+  --app-border: rgb(24 32 51 / 12%);
+  --app-hover: #f1f4ff;
+  --app-selected: #eef2ff;
+  --app-error-bg: #fdecef;
+  --app-error-text: #8f1d2c;
+  --app-warning-bg: #fff4d6;
+  --app-warning-text: #7a4d00;
+}
+
+html,
+body {
+  min-width: 320px;
+  min-height: 100%;
+  color: var(--app-text);
+  background: var(--app-background);
+}
+
+body.body--dark {
+  --app-background: #10141d;
+  --app-surface: #1a202c;
+  --app-surface-soft: #222a38;
+  --app-text: #f3f5f9;
+  --app-muted: #b2bbca;
+  --app-border: rgb(226 232 240 / 15%);
+  --app-hover: #242d40;
+  --app-selected: #253457;
+  --app-error-bg: #3b2027;
+  --app-error-text: #ffb9c1;
+  --app-warning-bg: #3b301b;
+  --app-warning-text: #ffd88a;
+}
+
+.q-card--bordered,
+.q-header--bordered {
+  border-color: var(--app-border);
+}
+
+.body--dark .text-grey-7,
+.body--dark .q-item__label--caption {
+  color: var(--app-muted) !important;
+}
+
+:focus-visible {
+  outline: 3px solid rgb(49 91 219 / 38%);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
