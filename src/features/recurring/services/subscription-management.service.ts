@@ -17,7 +17,7 @@ export interface ManagedSubscription {
 
 export class SubscriptionNotFoundError extends Error {
   constructor() {
-    super('La suscripciÃ³n no existe o fue cancelada.');
+    super('La suscripción no existe o fue cancelada.');
     this.name = 'SubscriptionNotFoundError';
   }
 }

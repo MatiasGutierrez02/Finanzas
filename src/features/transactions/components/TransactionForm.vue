@@ -105,6 +105,7 @@
       size="lg"
       type="submit"
       :loading="saving"
+      :disable="saving"
       :label="mode === 'create' ? 'Guardar transacción' : 'Guardar cambios'"
     />
   </q-form>
@@ -161,6 +162,7 @@ watch(
 );
 
 function submit(): void {
+  if (props.saving) return;
   emit('submit', { ...form });
 }
 

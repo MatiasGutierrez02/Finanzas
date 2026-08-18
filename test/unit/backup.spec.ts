@@ -179,6 +179,29 @@ describe('backup service', () => {
     expect(await database.transactions.count()).toBe(2);
   });
 
+  it('rejects a lastGeneratedPeriod before the rule start without replacing data', async () => {
+    await transactionService().create(form('subscription'));
+    const document = backupService.parse((await backupService.exportBackup()).json);
+    const invalid = structuredClone(document) as BackupDocument;
+    const rule = invalid.recurringRules[0];
+    if (rule === undefined) throw new Error('Fixture inválido');
+    rule.lastGeneratedPeriod = '2025-12' as typeof rule.lastGeneratedPeriod;
+
+    await expect(backupService.importBackup(invalid)).rejects.toThrow(/anterior al inicio/i);
+    expect((await database.recurringRules.get(rule.id))?.lastGeneratedPeriod).toBe('2026-01');
+  });
+
+  it('rejects an active rule whose lastGeneratedPeriod has no matching occurrence', async () => {
+    await transactionService().create(form('subscription'));
+    const document = backupService.parse((await backupService.exportBackup()).json);
+    const invalid = structuredClone(document) as BackupDocument;
+    const rule = invalid.recurringRules[0];
+    if (rule === undefined) throw new Error('Fixture inválido');
+    rule.lastGeneratedPeriod = '2099-12' as typeof rule.lastGeneratedPeriod;
+
+    expect(() => backupService.parse(JSON.stringify(invalid))).toThrow(/ocurrencia asociada/i);
+  });
+
   it('rolls back replacement if persistence fails after clearing tables', async () => {
     const original = await repository.readAll();
     const duplicatedCategory = original.categories[0];

@@ -2,6 +2,7 @@ import type { Transaction } from '@/models/transaction';
 import type { TransactionRepository } from '@/repositories/contracts/transaction.repository';
 import { repositories } from '@/repositories';
 import { getPeriodRange } from '@/utils/date-range';
+import { todayLocalDate } from '@/utils/dates';
 import { monthlyRecurrenceService } from '@/features/recurring/services/monthly-recurrence.service';
 
 import type { MonthlySavings, SavingsQuery, SavingsSnapshot } from '../models/savings';
@@ -26,6 +27,7 @@ const monthFormatter = new Intl.DateTimeFormat('es-AR', { month: 'long' });
 interface Dependencies {
   transactions: TransactionRepository;
   recurrence: Pick<typeof monthlyRecurrenceService, 'generateThrough'>;
+  today?: typeof todayLocalDate;
 }
 
 function capitalize(value: string): string {
@@ -64,11 +66,18 @@ export class SavingsService {
 
   async getSnapshot(query: SavingsQuery): Promise<SavingsSnapshot> {
     const range = getPeriodRange('year', query.referenceDate);
-    await this.dependencies.recurrence.generateThrough(range.end);
-    const transactions = await this.dependencies.transactions.find({
-      startDate: range.start,
-      endDate: range.end,
-    });
+    const today = (this.dependencies.today ?? todayLocalDate)();
+    const endDate = range.end < today ? range.end : today;
+    const isFutureYear = range.start > today;
+    let transactions: Transaction[] = [];
+
+    if (!isFutureYear) {
+      await this.dependencies.recurrence.generateThrough(endDate);
+      transactions = await this.dependencies.transactions.find({
+        startDate: range.start,
+        endDate,
+      });
+    }
     const year = Number(query.referenceDate.slice(0, 4));
     const months = calculateMonthlySavings(transactions, year);
     let totalCents = 0;

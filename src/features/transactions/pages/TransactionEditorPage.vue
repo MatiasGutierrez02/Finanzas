@@ -49,6 +49,7 @@ const { categories, errorMessage, initialValue, loading, save, saving } =
   useTransactionEditor(transactionId);
 
 async function submit(value: TransactionFormValue): Promise<void> {
+  if (saving.value) return;
   const transaction = await save(value);
 
   if (transaction === null) {

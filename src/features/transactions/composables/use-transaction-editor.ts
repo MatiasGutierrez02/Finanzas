@@ -56,6 +56,7 @@ export function useTransactionEditor(transactionId?: string) {
   }
 
   async function save(value: TransactionFormValue): Promise<Transaction | null> {
+    if (saving.value) return null;
     saving.value = true;
     errorMessage.value = null;
 

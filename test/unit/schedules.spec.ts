@@ -19,6 +19,7 @@ import type {
   TransactionId,
   YearMonth,
 } from '@/models/common';
+import type { Transaction } from '@/models/transaction';
 import { DexieCategoryRepository } from '@/repositories/dexie/dexie-category.repository';
 import { DexieRecurringRuleRepository } from '@/repositories/dexie/dexie-recurring-rule.repository';
 import { DexieScheduleRepository } from '@/repositories/dexie/dexie-schedule.repository';
@@ -136,6 +137,34 @@ describe('monthly schedules', () => {
     ]);
   });
 
+  it('creates exactly 1/2 and 2/2, with no installment after the finite plan', async () => {
+    await createService().create(form('installments', '2', '2026-08-18'));
+
+    const installments = await database.transactions.orderBy('date').toArray();
+    expect(
+      installments.map(({ date, installmentNumber, installmentCount }) => ({
+        date,
+        installmentNumber,
+        installmentCount,
+      })),
+    ).toEqual([
+      { date: '2026-08-18', installmentNumber: 1, installmentCount: 2 },
+      { date: '2026-09-01', installmentNumber: 2, installmentCount: 2 },
+    ]);
+  });
+
+  it('ends an N-installment plan at N/N without any N+1 generation', async () => {
+    await createService().create(form('installments', '6', '2026-08-18'));
+
+    const installments = await database.transactions.orderBy('date').toArray();
+    expect(installments).toHaveLength(6);
+    expect(installments.at(-1)).toMatchObject({
+      date: '2027-01-01',
+      installmentNumber: 6,
+      installmentCount: 6,
+    });
+  });
+
   it('rolls back the complete installment batch if one record conflicts', async () => {
     const duplicateId = 'duplicate' as TransactionId;
 
@@ -202,6 +231,38 @@ describe('monthly schedules', () => {
     expect(await management.list()).toEqual([]);
     expect(await recurrence.generateThrough(toLocalDate('2027-01-31'))).toBe(0);
   });
+
+  it.each(['pause', 'cancel'] as const)(
+    'does not let stale generation overwrite a later %s',
+    async (action) => {
+      await createService().create(form('subscription', '2', '2026-08-18'));
+      const staleRule = await database.recurringRules.get(ruleId);
+      const initial = await database.transactions.where('recurringRuleId').equals(ruleId).first();
+      if (staleRule === undefined || initial === undefined) throw new Error('Fixture inválido');
+
+      const staleOccurrence: Transaction = {
+        ...initial,
+        id: nextTransactionId(),
+        date: toLocalDate('2026-09-01'),
+        occurrenceKey: `${ruleId}:2026-09`,
+      };
+      await createManagementService(toLocalDate('2026-08-18'))[action](ruleId);
+
+      const created = await new DexieScheduleRepository(database).persistOccurrences([
+        {
+          rule: { ...staleRule, lastGeneratedPeriod: '2026-09' as YearMonth },
+          occurrences: [staleOccurrence],
+        },
+      ]);
+
+      expect(created).toBe(0);
+      expect(await database.transactions.get(staleOccurrence.id)).toBeUndefined();
+      expect(await database.recurringRules.get(ruleId)).toMatchObject({ isActive: false });
+      if (action === 'cancel') {
+        expect((await database.recurringRules.get(ruleId))?.cancelledAt).toBe(timestamp);
+      }
+    },
+  );
 
   it('rejects an invalid combined scheduling mode before persisting', async () => {
     await expect(

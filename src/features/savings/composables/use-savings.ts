@@ -11,19 +11,24 @@ export function useSavings() {
   const snapshot = ref<SavingsSnapshot>();
   const loading = ref(true);
   const errorMessage = ref<string | null>(null);
+  let requestSequence = 0;
 
   async function load(): Promise<void> {
+    const requestId = ++requestSequence;
     loading.value = true;
     errorMessage.value = null;
     try {
-      snapshot.value = await savingsService.getSnapshot({
+      const result = await savingsService.getSnapshot({
         referenceDate: savingsReferenceDate.value,
       });
+      if (requestId === requestSequence) snapshot.value = result;
     } catch (error) {
-      errorMessage.value =
-        error instanceof Error ? error.message : 'No pudimos calcular el ahorro.';
+      if (requestId === requestSequence) {
+        errorMessage.value =
+          error instanceof Error ? error.message : 'No pudimos calcular el ahorro.';
+      }
     } finally {
-      loading.value = false;
+      if (requestId === requestSequence) loading.value = false;
     }
   }
 

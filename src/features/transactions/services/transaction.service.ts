@@ -140,6 +140,14 @@ export class TransactionService {
   async update(id: string, input: TransactionFormValue): Promise<Transaction> {
     const current = await this.getById(id);
     const normalized = await this.normalizeInput(input);
+    if (
+      current.recurringRuleId !== null &&
+      toYearMonth(current.date) !== toYearMonth(normalized.date)
+    ) {
+      throw new TransactionValidationError(
+        'Una ocurrencia de suscripción no puede moverse a otro mes.',
+      );
+    }
     const transaction: Transaction = {
       ...current,
       ...normalized,

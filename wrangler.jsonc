@@ -3,6 +3,6 @@
   "name": "finanzas",
   "compatibility_date": "2026-08-18",
   "assets": {
-    "directory": "./dist/pwa"
-  }
+    "directory": "./dist/pwa",
+  },
 }

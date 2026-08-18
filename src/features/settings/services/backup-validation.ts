@@ -98,7 +98,7 @@ export function validateBackupDocument(input: unknown): BackupDocument {
       throw new BackupValidationError(
         `recurringRules[${index}] referencia una categoría inexistente.`,
       );
-    localDate(value.startDate, `recurringRules[${index}].startDate`);
+    const startDate = localDate(value.startDate, `recurringRules[${index}].startDate`);
     if (
       !Number.isInteger(value.dayOfMonth) ||
       (value.dayOfMonth as number) < 1 ||
@@ -120,6 +120,13 @@ export function validateBackupDocument(input: unknown): BackupDocument {
         !/^\d{4}-(?:0[1-9]|1[0-2])$/.test(value.lastGeneratedPeriod))
     )
       throw new BackupValidationError(`recurringRules[${index}].lastGeneratedPeriod no es válido.`);
+    if (
+      typeof value.lastGeneratedPeriod === 'string' &&
+      value.lastGeneratedPeriod < startDate.slice(0, 7)
+    )
+      throw new BackupValidationError(
+        `recurringRules[${index}].lastGeneratedPeriod es anterior al inicio de la regla.`,
+      );
     iso(value.createdAt, `recurringRules[${index}].createdAt`);
     iso(value.updatedAt, `recurringRules[${index}].updatedAt`);
     return id;
@@ -185,6 +192,18 @@ export function validateBackupDocument(input: unknown): BackupDocument {
   unique(transactionIds, 'transactions');
   unique(occurrenceKeys, 'occurrenceKey');
   unique(installmentKeys, 'cuotas');
+
+  for (const [index, item] of recurringRules.entries()) {
+    const value = record(item, `recurringRules[${index}]`);
+    if (
+      value.isActive === true &&
+      typeof value.lastGeneratedPeriod === 'string' &&
+      !occurrenceKeys.includes(`${String(value.id)}:${value.lastGeneratedPeriod}`)
+    )
+      throw new BackupValidationError(
+        `recurringRules[${index}].lastGeneratedPeriod no tiene una ocurrencia asociada.`,
+      );
+  }
 
   const settingKeys = settings.map((item, index) => {
     const value = record(item, `settings[${index}]`);

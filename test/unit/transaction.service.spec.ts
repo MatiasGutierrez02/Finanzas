@@ -1,11 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FinancesDatabase } from '@/db/finances-database';
 import { seedDefaultCategories } from '@/db/seed/default-categories';
 import {
   TransactionService,
   TransactionValidationError,
+  transactionService,
 } from '@/features/transactions/services/transaction.service';
+import { useTransactionEditor } from '@/features/transactions/composables/use-transaction-editor';
 import type { IsoTimestamp, TransactionId } from '@/models/common';
 import { DexieCategoryRepository } from '@/repositories/dexie/dexie-category.repository';
 import { DexieTransactionRepository } from '@/repositories/dexie/dexie-transaction.repository';
@@ -110,5 +112,64 @@ describe('TransactionService', () => {
     ).rejects.toBeInstanceOf(TransactionValidationError);
 
     expect(await database.transactions.count()).toBe(0);
+  });
+
+  it('prevents moving a recurring occurrence to another month and preserves its occurrence key', async () => {
+    const created = await service.create({
+      type: 'expense',
+      amount: '30000',
+      categoryId: 'category:comida',
+      comment: 'Suscripción',
+      date: '2026-08-18',
+      schedule: 'subscription',
+      installmentCount: '2',
+    });
+
+    await expect(
+      service.update(created.id, {
+        type: 'expense',
+        amount: '30000',
+        categoryId: 'category:comida',
+        comment: 'Suscripción',
+        date: '2026-09-01',
+        schedule: 'subscription',
+        installmentCount: '2',
+      }),
+    ).rejects.toThrow(/no puede moverse a otro mes/i);
+
+    expect(await database.transactions.get(created.id)).toMatchObject({
+      date: '2026-08-18',
+      occurrenceKey: `${created.recurringRuleId}:2026-08`,
+    });
+  });
+
+  it('guards the save flow so a rapid double submit creates only one movement', async () => {
+    let finishCreate:
+      ((transaction: Awaited<ReturnType<TransactionService['create']>>) => void) | undefined;
+    const create = vi.spyOn(transactionService, 'create').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishCreate = resolve;
+        }),
+    );
+    const editor = useTransactionEditor();
+    const value = {
+      type: 'expense' as const,
+      amount: '1000',
+      categoryId: 'category:comida',
+      comment: '',
+      date: '2026-08-18',
+      schedule: 'none' as const,
+      installmentCount: '2',
+    };
+
+    const firstSave = editor.save(value);
+    const secondSave = editor.save(value);
+
+    expect(await secondSave).toBeNull();
+    expect(create).toHaveBeenCalledTimes(1);
+    finishCreate?.({ id: transactionId } as Awaited<ReturnType<TransactionService['create']>>);
+    expect((await firstSave)?.id).toBe(transactionId);
+    expect(editor.saving.value).toBe(false);
   });
 });

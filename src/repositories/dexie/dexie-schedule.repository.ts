@@ -35,7 +35,24 @@ export class DexieScheduleRepository implements ScheduleRepository {
         let created = 0;
 
         for (const { rule, occurrences } of batches) {
-          for (const occurrence of occurrences) {
+          const currentRule = await this.database.recurringRules.get(rule.id);
+
+          if (
+            currentRule === undefined ||
+            !currentRule.isActive ||
+            currentRule.cancelledAt != null
+          ) {
+            continue;
+          }
+
+          const pendingOccurrences = occurrences.filter((occurrence) => {
+            const period = occurrence.date.slice(0, 7);
+            return (
+              currentRule.lastGeneratedPeriod === null || period > currentRule.lastGeneratedPeriod
+            );
+          });
+
+          for (const occurrence of pendingOccurrences) {
             const exists = await this.database.transactions
               .where('occurrenceKey')
               .equals(occurrence.occurrenceKey ?? '')
@@ -47,7 +64,14 @@ export class DexieScheduleRepository implements ScheduleRepository {
             }
           }
 
-          await this.database.recurringRules.put(rule);
+          const lastGeneratedPeriod = pendingOccurrences.at(-1)?.date.slice(0, 7);
+          if (lastGeneratedPeriod !== undefined) {
+            await this.database.recurringRules.put({
+              ...currentRule,
+              lastGeneratedPeriod: lastGeneratedPeriod as RecurringRule['lastGeneratedPeriod'],
+              updatedAt: rule.updatedAt,
+            });
+          }
         }
 
         return created;
