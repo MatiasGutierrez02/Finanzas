@@ -6,12 +6,14 @@ import {
   SavingsService,
 } from '@/features/savings/services/savings.service';
 import type { CategoryId, IsoTimestamp, TransactionId } from '@/models/common';
+import type { PeriodUnit } from '@/models/period';
 import type { Transaction } from '@/models/transaction';
 import type { TransactionRepository } from '@/repositories/contracts/transaction.repository';
 import { useDashboardStore } from '@/stores/dashboard.store';
 import { toLocalDate } from '@/utils/dates';
 import { toCategoryId } from '@/utils/ids';
 import { toMoneyCents } from '@/utils/money';
+import { isCurrentPeriod } from '@/utils/date-range';
 
 const timestamp = '2026-08-18T12:00:00.000Z' as IsoTimestamp;
 const categoryId = toCategoryId('category:comida');
@@ -102,5 +104,31 @@ describe('savings year navigation', () => {
     expect(store.savingsReferenceDate).toBe('2025-01-01');
     store.moveSavingsYear(1);
     expect(store.savingsReferenceDate).toBe('2026-01-01');
+  });
+
+  it.each(['day', 'week', 'month', 'quarter', 'year'] as PeriodUnit[])(
+    'returns the dashboard to the current %s',
+    (period) => {
+      const store = useDashboardStore();
+      const today = toLocalDate('2026-08-18');
+      store.period = period;
+      store.referenceDate = toLocalDate('2024-02-29');
+
+      store.goToCurrentPeriod(today);
+
+      expect(store.referenceDate).toBe(today);
+      expect(isCurrentPeriod(period, store.referenceDate, today)).toBe(true);
+    },
+  );
+
+  it('returns savings to the current year', () => {
+    const store = useDashboardStore();
+    const today = toLocalDate('2026-08-18');
+    store.savingsReferenceDate = toLocalDate('2023-01-01');
+
+    store.goToCurrentSavingsYear(today);
+
+    expect(store.savingsReferenceDate).toBe(today);
+    expect(isCurrentPeriod('year', store.savingsReferenceDate, today)).toBe(true);
   });
 });

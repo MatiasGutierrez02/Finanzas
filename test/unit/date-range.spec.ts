@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatPeriodLabel, getPeriodRange, navigatePeriod } from '@/utils/date-range';
+import {
+  formatPeriodLabel,
+  getPeriodRange,
+  isCurrentPeriod,
+  navigatePeriod,
+} from '@/utils/date-range';
 import { toLocalDate } from '@/utils/dates';
 
 const reference = toLocalDate('2026-08-18');
@@ -33,6 +38,19 @@ describe('period navigation', () => {
     ['year', -1, '2025-01-01'],
   ] as const)('moves exactly one %s', (unit, direction, expected) => {
     expect(navigatePeriod(reference, unit, direction)).toBe(expected);
+  });
+});
+
+describe('current period detection', () => {
+  it.each([
+    ['day', '2026-08-18', '2026-08-17'],
+    ['week', '2026-08-20', '2026-08-24'],
+    ['month', '2026-08-01', '2026-09-01'],
+    ['quarter', '2026-07-01', '2026-10-01'],
+    ['year', '2026-01-01', '2025-12-31'],
+  ] as const)('detects whether a reference belongs to the current %s', (unit, current, other) => {
+    expect(isCurrentPeriod(unit, toLocalDate(current), reference)).toBe(true);
+    expect(isCurrentPeriod(unit, toLocalDate(other), reference)).toBe(false);
   });
 });
 

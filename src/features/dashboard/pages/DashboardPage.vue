@@ -83,6 +83,18 @@
               @click="store.movePeriod(1)"
             />
           </q-card-section>
+
+          <q-card-section v-if="!isViewingCurrentPeriod" class="row justify-center q-pt-none">
+            <q-btn
+              flat
+              dense
+              no-caps
+              color="primary"
+              icon="today"
+              label="Actual"
+              @click="store.goToCurrentPeriod()"
+            />
+          </q-card-section>
         </q-card>
 
         <div v-if="loading" class="row justify-center q-py-xl">
@@ -184,7 +196,7 @@ import { useQuasar } from 'quasar';
 
 import type { PeriodUnit } from '@/models/period';
 import type { TransactionType } from '@/models/transaction';
-import { formatPeriodLabel } from '@/utils/date-range';
+import { formatPeriodLabel, isCurrentPeriod } from '@/utils/date-range';
 import { formatArs, formatSignedArs } from '@/utils/money';
 
 import CategoryDoughnutChart from '../components/CategoryDoughnutChart.vue';
@@ -209,6 +221,7 @@ const periodOptions: { label: string; value: PeriodUnit }[] = [
   { label: 'Año', value: 'year' },
 ];
 const monthLabel = computed(() => formatPeriodLabel('month', store.referenceDate));
+const isViewingCurrentPeriod = computed(() => isCurrentPeriod(store.period, store.referenceDate));
 
 function setTransactionType(value: TransactionType): void {
   store.setTransactionType(value);

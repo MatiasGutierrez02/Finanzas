@@ -30,6 +30,17 @@
           @click="store.moveSavingsYear(1)"
         />
       </q-card-section>
+      <q-card-section v-if="!isViewingCurrentYear" class="row justify-center q-pt-none">
+        <q-btn
+          flat
+          dense
+          no-caps
+          color="primary"
+          icon="today"
+          label="Actual"
+          @click="store.goToCurrentSavingsYear()"
+        />
+      </q-card-section>
     </q-card>
 
     <div v-if="loading" class="row justify-center q-py-xl">
@@ -98,9 +109,11 @@ import { computed } from 'vue';
 import SavingsDoughnutChart from './SavingsDoughnutChart.vue';
 import { useSavings } from '../composables/use-savings';
 import { formatSignedArs } from '@/utils/money';
+import { isCurrentPeriod } from '@/utils/date-range';
 
 const { errorMessage, load, loading, snapshot, store } = useSavings();
 const yearLabel = computed(() => store.savingsReferenceDate.slice(0, 4));
+const isViewingCurrentYear = computed(() => isCurrentPeriod('year', store.savingsReferenceDate));
 
 function formatSigned(value: number): string {
   if (value > 0) return `+${formatSignedArs(value)}`;

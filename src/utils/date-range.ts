@@ -75,6 +75,16 @@ export function getPeriodRange(unit: PeriodUnit, reference: LocalDate): DateRang
   };
 }
 
+export function isCurrentPeriod(
+  unit: PeriodUnit,
+  reference: LocalDate,
+  today: LocalDate = todayLocalDate(),
+): boolean {
+  const referenceRange = getPeriodRange(unit, reference);
+  const currentRange = getPeriodRange(unit, today);
+  return referenceRange.start === currentRange.start && referenceRange.end === currentRange.end;
+}
+
 export function navigatePeriod(
   reference: LocalDate,
   unit: PeriodUnit,

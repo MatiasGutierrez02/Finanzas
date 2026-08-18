@@ -35,8 +35,18 @@ export const useDashboardStore = defineStore('dashboard', () => {
     referenceDate.value = navigatePeriod(referenceDate.value, period.value, direction);
   }
 
+  function goToCurrentPeriod(today: LocalDate = todayLocalDate()): void {
+    referenceDate.value = today;
+  }
+
+  function goToCurrentSavingsYear(today: LocalDate = todayLocalDate()): void {
+    savingsReferenceDate.value = today;
+  }
+
   return {
     mode,
+    goToCurrentPeriod,
+    goToCurrentSavingsYear,
     movePeriod,
     moveSavingsYear,
     period,
