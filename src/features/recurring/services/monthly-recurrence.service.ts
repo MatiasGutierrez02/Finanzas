@@ -11,10 +11,8 @@ export function toYearMonth(date: LocalDate): YearMonth {
   return date.slice(0, 7) as YearMonth;
 }
 
-export function occurrenceDate(period: YearMonth, dayOfMonth: number): LocalDate {
-  const [year = 0, month = 1] = period.split('-').map(Number);
-  const lastDay = new Date(year, month, 0, 12).getDate();
-  return toLocalDate(`${period}-${String(Math.min(dayOfMonth, lastDay)).padStart(2, '0')}`);
+export function occurrenceDate(period: YearMonth): LocalDate {
+  return toLocalDate(`${period}-01`);
 }
 
 export function monthsBetween(start: YearMonth, end: YearMonth): YearMonth[] {
@@ -64,7 +62,7 @@ export class MonthlyRecurrenceService {
         amountCents: rule.amountCents,
         categoryId: rule.categoryId,
         comment: rule.comment,
-        date: occurrenceDate(period, rule.dayOfMonth),
+        date: occurrenceDate(period),
         createdAt: timestamp,
         updatedAt: timestamp,
         recurringRuleId: rule.id,

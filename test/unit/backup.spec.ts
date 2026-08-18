@@ -121,6 +121,52 @@ describe('backup service', () => {
     );
   });
 
+  it('imports a legacy rule without cancellation metadata and schedules its future on day 1', async () => {
+    await transactionService().create(form('subscription'));
+    const legacy = structuredClone(
+      backupService.parse((await backupService.exportBackup()).json),
+    ) as BackupDocument;
+    const legacyRule = legacy.recurringRules[0];
+    if (legacyRule === undefined) throw new Error('Fixture inválido');
+    delete legacyRule.cancelledAt;
+    legacyRule.dayOfMonth = 31;
+
+    const parsed = backupService.parse(JSON.stringify(legacy));
+    await backupService.importBackup(parsed);
+    const recurrence = new MonthlyRecurrenceService({
+      recurringRules: new DexieRecurringRuleRepository(database),
+      schedules: new DexieScheduleRepository(database),
+      createTransactionId: nextId,
+      now: () => timestamp,
+    });
+
+    expect(await recurrence.generateThrough(toLocalDate('2026-03-31'))).toBe(2);
+    expect(
+      (await database.transactions.where('recurringRuleId').equals('rule-1').sortBy('date')).map(
+        ({ date }) => date,
+      ),
+    ).toEqual(['2026-01-31', '2026-02-01', '2026-03-01']);
+  });
+
+  it('preserves a definitively cancelled rule so historical references remain valid', async () => {
+    await transactionService().create(form('subscription'));
+    const cancelledRuleId = 'rule-1' as RecurringRuleId;
+    await database.recurringRules.update(cancelledRuleId, {
+      isActive: false,
+      cancelledAt: timestamp,
+      updatedAt: timestamp,
+    });
+    const document = backupService.parse((await backupService.exportBackup()).json);
+
+    await backupService.importBackup(document);
+
+    expect(await database.recurringRules.get(cancelledRuleId)).toMatchObject({
+      isActive: false,
+      cancelledAt: timestamp,
+    });
+    expect(await database.transactions.where('recurringRuleId').equals('rule-1').count()).toBe(1);
+  });
+
   it('rejects invalid references before modifying persisted data', async () => {
     await transactionService().create(form('installments'));
     const document = backupService.parse((await backupService.exportBackup()).json);

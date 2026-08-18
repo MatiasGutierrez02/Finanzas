@@ -17,6 +17,7 @@ export interface RecurringRule {
   startDate: LocalDate;
   dayOfMonth: number;
   isActive: boolean;
+  cancelledAt?: IsoTimestamp | null;
   lastGeneratedPeriod: YearMonth | null;
   createdAt: IsoTimestamp;
   updatedAt: IsoTimestamp;

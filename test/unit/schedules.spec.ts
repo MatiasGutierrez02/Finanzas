@@ -6,6 +6,7 @@ import {
   MonthlyRecurrenceService,
   occurrenceDate,
 } from '@/features/recurring/services/monthly-recurrence.service';
+import { SubscriptionManagementService } from '@/features/recurring/services/subscription-management.service';
 import {
   TransactionService,
   TransactionValidationError,
@@ -13,6 +14,7 @@ import {
 import type {
   InstallmentGroupId,
   IsoTimestamp,
+  LocalDate,
   RecurringRuleId,
   TransactionId,
   YearMonth,
@@ -35,13 +37,17 @@ function nextTransactionId(): TransactionId {
   return `transaction-${idSequence}` as TransactionId;
 }
 
-function form(schedule: 'none' | 'subscription' | 'installments', installmentCount = '2') {
+function form(
+  schedule: 'none' | 'subscription' | 'installments',
+  installmentCount = '2',
+  date = '2026-01-31',
+) {
   return {
     type: 'expense' as const,
     amount: '20000',
     categoryId: 'category:comida',
     comment: 'Servicio',
-    date: '2026-01-31',
+    date,
     schedule,
     installmentCount,
   };
@@ -72,14 +78,13 @@ afterEach(async () => {
 });
 
 describe('monthly schedules', () => {
-  it('clamps day 31 to February and respects leap years', () => {
-    expect(occurrenceDate('2024-02' as YearMonth, 31)).toBe('2024-02-29');
-    expect(occurrenceDate('2025-02' as YearMonth, 31)).toBe('2025-02-28');
-    expect(occurrenceDate('2026-04' as YearMonth, 31)).toBe('2026-04-30');
+  it('places every automatic monthly occurrence on the first day', () => {
+    expect(occurrenceDate('2024-02' as YearMonth)).toBe('2024-02-01');
+    expect(occurrenceDate('2025-09' as YearMonth)).toBe('2025-09-01');
   });
 
-  it('generates monthly subscription occurrences once across repeated reopen-style runs', async () => {
-    await createService().create(form('subscription'));
+  it('keeps the initial mid-month subscription movement and generates later months once on day 1', async () => {
+    await createService().create(form('subscription', '2', '2026-08-18'));
     const recurrence = new MonthlyRecurrenceService({
       recurringRules: new DexieRecurringRuleRepository(database),
       schedules: new DexieScheduleRepository(database),
@@ -87,19 +92,19 @@ describe('monthly schedules', () => {
       now: () => timestamp,
     });
 
-    expect(await recurrence.generateThrough(toLocalDate('2026-03-31'))).toBe(2);
-    expect(await recurrence.generateThrough(toLocalDate('2026-03-31'))).toBe(0);
+    expect(await recurrence.generateThrough(toLocalDate('2026-10-31'))).toBe(2);
+    expect(await recurrence.generateThrough(toLocalDate('2026-10-31'))).toBe(0);
 
     const transactions = await database.transactions.orderBy('date').toArray();
     expect(transactions.map(({ date, occurrenceKey }) => ({ date, occurrenceKey }))).toEqual([
-      { date: '2026-01-31', occurrenceKey: 'rule-1:2026-01' },
-      { date: '2026-02-28', occurrenceKey: 'rule-1:2026-02' },
-      { date: '2026-03-31', occurrenceKey: 'rule-1:2026-03' },
+      { date: '2026-08-18', occurrenceKey: 'rule-1:2026-08' },
+      { date: '2026-09-01', occurrenceKey: 'rule-1:2026-09' },
+      { date: '2026-10-01', occurrenceKey: 'rule-1:2026-10' },
     ]);
   });
 
   it('creates all installments atomically with a shared group and 1/N numbering', async () => {
-    await createService().create(form('installments', '3'));
+    await createService().create(form('installments', '3', '2026-08-18'));
 
     const installments = await database.transactions.orderBy('date').toArray();
     expect(
@@ -111,19 +116,19 @@ describe('monthly schedules', () => {
       })),
     ).toEqual([
       {
-        date: '2026-01-31',
+        date: '2026-08-18',
         installmentGroupId: groupId,
         installmentNumber: 1,
         installmentCount: 3,
       },
       {
-        date: '2026-02-28',
+        date: '2026-09-01',
         installmentGroupId: groupId,
         installmentNumber: 2,
         installmentCount: 3,
       },
       {
-        date: '2026-03-31',
+        date: '2026-10-01',
         installmentGroupId: groupId,
         installmentNumber: 3,
         installmentCount: 3,
@@ -140,6 +145,64 @@ describe('monthly schedules', () => {
     expect(await database.transactions.count()).toBe(0);
   });
 
+  it('pauses atomically, removes only future occurrences and stops generation', async () => {
+    await createService().create(form('subscription', '2', '2026-08-18'));
+    const recurrence = new MonthlyRecurrenceService({
+      recurringRules: new DexieRecurringRuleRepository(database),
+      schedules: new DexieScheduleRepository(database),
+      createTransactionId: nextTransactionId,
+      now: () => timestamp,
+    });
+    await recurrence.generateThrough(toLocalDate('2026-10-31'));
+    const management = createManagementService(toLocalDate('2026-08-18'));
+
+    expect(await management.pause(ruleId)).toBe(2);
+    expect((await database.transactions.orderBy('date').toArray()).map(({ date }) => date)).toEqual(
+      ['2026-08-18'],
+    );
+    expect(await database.recurringRules.get(ruleId)).toMatchObject({ isActive: false });
+    expect(await recurrence.generateThrough(toLocalDate('2026-12-31'))).toBe(0);
+  });
+
+  it('resumes from the current month without recreating months omitted while paused', async () => {
+    await createService().create(form('subscription', '2', '2026-08-18'));
+    const recurrence = new MonthlyRecurrenceService({
+      recurringRules: new DexieRecurringRuleRepository(database),
+      schedules: new DexieScheduleRepository(database),
+      createTransactionId: nextTransactionId,
+      now: () => timestamp,
+    });
+    await recurrence.generateThrough(toLocalDate('2026-10-31'));
+    await createManagementService(toLocalDate('2026-08-18')).pause(ruleId);
+    await createManagementService(toLocalDate('2026-10-15')).resume(ruleId);
+
+    expect(await recurrence.generateThrough(toLocalDate('2026-12-31'))).toBe(2);
+    expect((await database.transactions.orderBy('date').toArray()).map(({ date }) => date)).toEqual(
+      ['2026-08-18', '2026-11-01', '2026-12-01'],
+    );
+  });
+
+  it('cancels permanently, removes future occurrences and preserves history', async () => {
+    await createService().create(form('subscription', '2', '2026-08-18'));
+    const recurrence = new MonthlyRecurrenceService({
+      recurringRules: new DexieRecurringRuleRepository(database),
+      schedules: new DexieScheduleRepository(database),
+      createTransactionId: nextTransactionId,
+      now: () => timestamp,
+    });
+    await recurrence.generateThrough(toLocalDate('2026-10-31'));
+    const management = createManagementService(toLocalDate('2026-08-18'));
+
+    expect(await management.cancel(ruleId)).toBe(2);
+    expect((await database.transactions.toArray()).map(({ date }) => date)).toEqual(['2026-08-18']);
+    expect(await database.recurringRules.get(ruleId)).toMatchObject({
+      isActive: false,
+      cancelledAt: timestamp,
+    });
+    expect(await management.list()).toEqual([]);
+    expect(await recurrence.generateThrough(toLocalDate('2027-01-31'))).toBe(0);
+  });
+
   it('rejects an invalid combined scheduling mode before persisting', async () => {
     await expect(
       createService().create({ ...form('none'), schedule: 'subscription+installments' as 'none' }),
@@ -147,3 +210,13 @@ describe('monthly schedules', () => {
     expect(await database.transactions.count()).toBe(0);
   });
 });
+
+function createManagementService(today: LocalDate): SubscriptionManagementService {
+  return new SubscriptionManagementService({
+    recurringRules: new DexieRecurringRuleRepository(database),
+    categories: new DexieCategoryRepository(database),
+    schedules: new DexieScheduleRepository(database),
+    today: () => today,
+    now: () => timestamp,
+  });
+}

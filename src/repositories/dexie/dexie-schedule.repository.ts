@@ -1,4 +1,5 @@
 import type { FinancesDatabase } from '@/db/finances-database';
+import type { LocalDate } from '@/models/common';
 import type { RecurringRule } from '@/models/recurring-rule';
 import type { Transaction } from '@/models/transaction';
 import type {
@@ -50,6 +51,24 @@ export class DexieScheduleRepository implements ScheduleRepository {
         }
 
         return created;
+      },
+    );
+  }
+
+  async updateRuleAndRemoveFutureOccurrences(
+    rule: RecurringRule,
+    today: LocalDate,
+  ): Promise<number> {
+    return this.database.transaction(
+      'rw',
+      [this.database.recurringRules, this.database.transactions],
+      async () => {
+        const removed = await this.database.transactions
+          .where('[recurringRuleId+date]')
+          .between([rule.id, today], [rule.id, '9999-12-31'], false, true)
+          .delete();
+        await this.database.recurringRules.put(rule);
+        return removed;
       },
     );
   }

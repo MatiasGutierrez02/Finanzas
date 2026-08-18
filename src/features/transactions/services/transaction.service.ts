@@ -79,8 +79,9 @@ export class TransactionService {
         categoryId: normalized.categoryId,
         comment: normalized.comment,
         startDate: normalized.date,
-        dayOfMonth: Number(normalized.date.slice(8, 10)),
+        dayOfMonth: 1,
         isActive: true,
+        cancelledAt: null,
         lastGeneratedPeriod: period,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -102,7 +103,6 @@ export class TransactionService {
       const count = this.parseInstallmentCount(input.installmentCount);
       const groupId = (this.dependencies.createInstallmentGroupId ?? newInstallmentGroupId)();
       const [year = 0, month = 1] = normalized.date.slice(0, 7).split('-').map(Number);
-      const day = Number(normalized.date.slice(8, 10));
       const installments = Array.from({ length: count }, (_, index): Transaction => {
         const target = new Date(year, month - 1 + index, 1, 12);
         const period = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(
@@ -112,7 +112,7 @@ export class TransactionService {
         return {
           id: this.createId(),
           ...base,
-          date: occurrenceDate(period, day),
+          date: index === 0 ? normalized.date : occurrenceDate(period),
           recurringRuleId: null,
           occurrenceKey: null,
           installmentGroupId: groupId,

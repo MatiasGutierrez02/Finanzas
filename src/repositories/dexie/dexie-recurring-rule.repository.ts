@@ -10,7 +10,13 @@ export class DexieRecurringRuleRepository implements RecurringRuleRepository {
   }
 
   getActive(): Promise<RecurringRule[]> {
-    return this.database.recurringRules.filter((rule) => rule.isActive).toArray();
+    return this.database.recurringRules
+      .filter((rule) => rule.isActive && rule.cancelledAt == null)
+      .toArray();
+  }
+
+  getManageable(): Promise<RecurringRule[]> {
+    return this.database.recurringRules.filter((rule) => rule.cancelledAt == null).toArray();
   }
 
   async put(rule: RecurringRule): Promise<void> {

@@ -107,6 +107,13 @@ export function validateBackupDocument(input: unknown): BackupDocument {
       throw new BackupValidationError(`recurringRules[${index}].dayOfMonth no es válido.`);
     if (typeof value.isActive !== 'boolean')
       throw new BackupValidationError(`recurringRules[${index}].isActive no es válido.`);
+    if (value.cancelledAt !== undefined && value.cancelledAt !== null) {
+      iso(value.cancelledAt, `recurringRules[${index}].cancelledAt`);
+      if (value.isActive)
+        throw new BackupValidationError(
+          `recurringRules[${index}] no puede estar activa y cancelada.`,
+        );
+    }
     if (
       value.lastGeneratedPeriod !== null &&
       (typeof value.lastGeneratedPeriod !== 'string' ||

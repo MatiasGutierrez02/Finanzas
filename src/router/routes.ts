@@ -17,6 +17,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/settings/pages/SettingsPage.vue'),
       },
       {
+        path: 'settings/subscriptions',
+        name: 'subscriptions',
+        meta: { showBack: true },
+        component: () => import('@/features/recurring/pages/SubscriptionsPage.vue'),
+      },
+      {
         path: 'categories/:categoryId',
         name: 'category-detail',
         meta: { showBack: true },

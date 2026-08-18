@@ -1,13 +1,29 @@
 <template>
   <q-page class="settings-page q-pa-md">
     <main class="settings-content">
-      <p class="text-overline text-primary q-mb-xs">DATOS</p>
+      <p class="text-overline text-primary q-mb-xs">AJUSTES</p>
       <h1 class="text-h5 text-weight-bold q-mt-none q-mb-sm">Configuración</h1>
       <p class="text-body2 text-grey-7 q-mt-none q-mb-lg">
-        Guardá una copia local o restaurá todos los datos desde un archivo JSON.
+        Administrá tus suscripciones y copias de seguridad.
       </p>
 
-      <q-card flat bordered class="backup-card">
+      <q-card flat bordered class="settings-card q-mb-md">
+        <q-list>
+          <q-item clickable v-ripple :to="{ name: 'subscriptions' }">
+            <q-item-section avatar>
+              <q-icon name="autorenew" color="primary" size="28px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-weight-medium">Suscripciones</q-item-label>
+              <q-item-label caption>Pausá, reanudá o cancelá reglas mensuales.</q-item-label>
+            </q-item-section>
+            <q-item-section side><q-icon name="chevron_right" /></q-item-section>
+          </q-item>
+        </q-list>
+      </q-card>
+
+      <p class="text-overline text-primary q-mb-xs">DATOS</p>
+      <q-card flat bordered class="settings-card">
         <q-linear-progress v-if="working" indeterminate color="primary" aria-label="Procesando" />
         <q-list separator>
           <q-item clickable v-ripple :disable="working" @click="exportBackup">
@@ -135,7 +151,7 @@ function notifyError(error: unknown, fallback: string): void {
   margin: 0 auto;
   padding-top: clamp(0.5rem, 3vw, 2rem);
 }
-.backup-card {
+.settings-card {
   overflow: hidden;
   border-radius: 20px;
   background: var(--app-surface);
