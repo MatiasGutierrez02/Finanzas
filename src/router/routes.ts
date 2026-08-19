@@ -17,6 +17,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/features/settings/pages/SettingsPage.vue'),
       },
       {
+        path: 'settings/fixed-expenses',
+        name: 'fixed-expenses',
+        meta: { showBack: true },
+        component: () => import('@/features/fixed-expenses/pages/FixedExpensesPage.vue'),
+      },
+      {
         path: 'settings/subscriptions',
         name: 'subscriptions',
         meta: { showBack: true },

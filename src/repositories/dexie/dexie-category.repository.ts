@@ -20,15 +20,21 @@ export class DexieCategoryRepository implements CategoryRepository {
   async removeIfUnused(id: Category['id']): Promise<boolean> {
     return this.database.transaction(
       'rw',
-      [this.database.categories, this.database.transactions, this.database.recurringRules],
+      [
+        this.database.categories,
+        this.database.transactions,
+        this.database.recurringRules,
+        this.database.fixedExpenseEstimates,
+      ],
       async () => {
         const category = await this.database.categories.get(id);
         if (category === undefined || category.isSystem) return false;
-        const [transactions, rules] = await Promise.all([
+        const [transactions, rules, fixedExpenses] = await Promise.all([
           this.database.transactions.where('categoryId').equals(id).count(),
           this.database.recurringRules.where('categoryId').equals(id).count(),
+          this.database.fixedExpenseEstimates.where('categoryId').equals(id).count(),
         ]);
-        if (transactions + rules > 0) return false;
+        if (transactions + rules + fixedExpenses > 0) return false;
         await this.database.categories.delete(id);
         return true;
       },

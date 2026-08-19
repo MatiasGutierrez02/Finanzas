@@ -43,6 +43,7 @@ export class BackupService {
       categories: validated.categories,
       recurringRules: validated.recurringRules,
       settings: validated.settings,
+      fixedExpenseEstimates: validated.fixedExpenseEstimates,
     });
   }
 }

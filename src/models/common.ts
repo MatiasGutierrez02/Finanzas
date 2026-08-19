@@ -6,6 +6,7 @@ export type LocalDate = Brand<string, 'LocalDate'>;
 export type MoneyCents = Brand<number, 'MoneyCents'>;
 export type RecurringRuleId = Brand<string, 'RecurringRuleId'>;
 export type TransactionId = Brand<string, 'TransactionId'>;
+export type FixedExpenseEstimateId = Brand<string, 'FixedExpenseEstimateId'>;
 export type YearMonth = Brand<string, 'YearMonth'>;
 
 export type IsoTimestamp = Brand<string, 'IsoTimestamp'>;

@@ -21,6 +21,9 @@ import { DexieTransactionRepository } from '@/repositories/dexie/dexie-transacti
 import { toLocalDate } from '@/utils/dates';
 import { CategoryService } from '@/features/categories/services/category.service';
 import type { CategoryId } from '@/models/common';
+import type { FixedExpenseEstimateId } from '@/models/common';
+import { FixedExpenseEstimateService } from '@/features/fixed-expenses/services/fixed-expense-estimate.service';
+import { DexieFixedExpenseEstimateRepository } from '@/repositories/dexie/dexie-fixed-expense-estimate.repository';
 
 const timestamp = '2026-01-31T12:00:00.000Z' as IsoTimestamp;
 let database: FinancesDatabase;
@@ -73,6 +76,45 @@ afterEach(async () => {
 });
 
 describe('backup service', () => {
+  it('exports and imports fixed expenses with optional category and timestamps', async () => {
+    const fixedExpenses = new FixedExpenseEstimateService({
+      repository: new DexieFixedExpenseEstimateRepository(database),
+      categories: new DexieCategoryRepository(database),
+      createId: () => 'fixed-backup' as FixedExpenseEstimateId,
+      now: () => timestamp,
+    });
+    const estimate = await fixedExpenses.create({
+      name: 'Gimnasio',
+      amount: '67.500',
+      categoryId: null,
+    });
+    const document = backupService.parse((await backupService.exportBackup()).json);
+    expect(document.fixedExpenseEstimates).toEqual([estimate]);
+
+    await database.fixedExpenseEstimates.clear();
+    await backupService.importBackup(document);
+    expect(await database.fixedExpenseEstimates.get(estimate.id)).toEqual(estimate);
+  });
+
+  it('imports an older backup without fixed expenses as an empty collection', async () => {
+    await database.fixedExpenseEstimates.add({
+      id: 'existing-fixed' as FixedExpenseEstimateId,
+      name: 'Internet',
+      amountCents: 100_000 as never,
+      categoryId: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    const legacy = JSON.parse((await backupService.exportBackup()).json) as Record<string, unknown>;
+    legacy.schemaVersion = 2;
+    delete legacy.fixedExpenseEstimates;
+
+    const parsed = backupService.parse(JSON.stringify(legacy));
+    expect(parsed.fixedExpenseEstimates).toEqual([]);
+    await backupService.importBackup(parsed);
+    expect(await database.fixedExpenseEstimates.count()).toBe(0);
+  });
+
   it('exports and restores the same complete state, preserving recurrence and installment identity', async () => {
     await transactionService().create(form('subscription'));
     await transactionService().create(form('installments', '3'));

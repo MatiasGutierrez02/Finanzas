@@ -9,6 +9,17 @@
 
       <q-card flat bordered class="settings-card q-mb-md">
         <q-list>
+          <q-item clickable v-ripple :to="{ name: 'fixed-expenses' }">
+            <q-item-section avatar>
+              <q-icon name="event_repeat" color="primary" size="28px" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-weight-medium">Gastos fijos</q-item-label>
+              <q-item-label caption>Registrá referencias para tu estimación mensual.</q-item-label>
+            </q-item-section>
+            <q-item-section side><q-icon name="chevron_right" /></q-item-section>
+          </q-item>
+          <q-separator />
           <q-item clickable v-ripple :to="{ name: 'subscriptions' }">
             <q-item-section avatar>
               <q-icon name="autorenew" color="primary" size="28px" />

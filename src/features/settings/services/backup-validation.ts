@@ -61,7 +61,7 @@ function unique(values: string[], label: string): void {
 
 export function validateBackupDocument(input: unknown): BackupDocument {
   const root = record(input, 'El backup');
-  if (root.schemaVersion !== 1 && root.schemaVersion !== BACKUP_SCHEMA_VERSION)
+  if (![1, 2, BACKUP_SCHEMA_VERSION].includes(root.schemaVersion as number))
     throw new BackupValidationError(
       `Versión de backup incompatible: ${String(root.schemaVersion)}.`,
     );
@@ -71,6 +71,10 @@ export function validateBackupDocument(input: unknown): BackupDocument {
   const recurringRules = array(root.recurringRules, 'recurringRules');
   const transactions = array(root.transactions, 'transactions');
   const settings = array(root.settings, 'settings');
+  const fixedExpenseEstimates =
+    root.schemaVersion === BACKUP_SCHEMA_VERSION
+      ? array(root.fixedExpenseEstimates, 'fixedExpenseEstimates')
+      : [];
 
   const categoryIds = categories.map((item, index) => {
     const value = record(item, `categories[${index}]`);
@@ -80,7 +84,7 @@ export function validateBackupDocument(input: unknown): BackupDocument {
       throw new BackupValidationError(`categories[${index}].color no es válido.`);
     if (value.icon !== null && typeof value.icon !== 'string')
       throw new BackupValidationError(`categories[${index}].icon no es válido.`);
-    if (root.schemaVersion === BACKUP_SCHEMA_VERSION && typeof value.isSystem !== 'boolean')
+    if (root.schemaVersion !== 1 && typeof value.isSystem !== 'boolean')
       throw new BackupValidationError(`categories[${index}].isSystem no es válido.`);
     if (typeof value.isActive !== 'boolean' || !Number.isInteger(value.sortOrder))
       throw new BackupValidationError(`categories[${index}] tiene campos inválidos.`);
@@ -90,6 +94,21 @@ export function validateBackupDocument(input: unknown): BackupDocument {
   });
   unique(categoryIds, 'categories');
   const categorySet = new Set(categoryIds);
+
+  const fixedExpenseEstimateIds = fixedExpenseEstimates.map((item, index) => {
+    const value = record(item, `fixedExpenseEstimates[${index}]`);
+    const id = text(value.id, `fixedExpenseEstimates[${index}].id`) as string;
+    text(value.name, `fixedExpenseEstimates[${index}].name`);
+    positiveMoney(value.amountCents, `fixedExpenseEstimates[${index}].amountCents`);
+    if (value.categoryId !== null && !categorySet.has(value.categoryId as string))
+      throw new BackupValidationError(
+        `fixedExpenseEstimates[${index}] referencia una categoría inexistente.`,
+      );
+    iso(value.createdAt, `fixedExpenseEstimates[${index}].createdAt`);
+    iso(value.updatedAt, `fixedExpenseEstimates[${index}].updatedAt`);
+    return id;
+  });
+  unique(fixedExpenseEstimateIds, 'fixedExpenseEstimates');
 
   const ruleIds = recurringRules.map((item, index) => {
     const value = record(item, `recurringRules[${index}]`);
@@ -233,5 +252,6 @@ export function validateBackupDocument(input: unknown): BackupDocument {
           : category.isSystem;
       return category;
     }),
+    fixedExpenseEstimates: fixedExpenseEstimates as BackupDocument['fixedExpenseEstimates'],
   };
 }

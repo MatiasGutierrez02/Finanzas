@@ -3,6 +3,7 @@ import type {
   InstallmentGroupId,
   RecurringRuleId,
   TransactionId,
+  FixedExpenseEstimateId,
 } from '@/models/common';
 
 export interface WebCryptoSource {
@@ -48,6 +49,10 @@ export function newInstallmentGroupId(cryptoSource?: WebCryptoSource): Installme
 
 export function newCategoryId(cryptoSource?: WebCryptoSource): CategoryId {
   return `category:custom:${generateUuid(cryptoSource)}` as CategoryId;
+}
+
+export function newFixedExpenseEstimateId(cryptoSource?: WebCryptoSource): FixedExpenseEstimateId {
+  return generateUuid(cryptoSource) as FixedExpenseEstimateId;
 }
 
 export function toCategoryId(value: string): CategoryId {
