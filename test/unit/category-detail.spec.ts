@@ -25,6 +25,7 @@ const category: Category = {
   name: 'Comida',
   color: '#F08A4B',
   icon: 'restaurant',
+  isSystem: true,
   isActive: true,
   sortOrder: 0,
   createdAt: timestamp,

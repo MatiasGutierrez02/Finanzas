@@ -27,6 +27,30 @@ export class DexieScheduleRepository implements ScheduleRepository {
     });
   }
 
+  async updateRecurringOccurrence(transaction: Transaction): Promise<void> {
+    await this.database.transaction(
+      'rw',
+      [this.database.recurringRules, this.database.transactions],
+      async () => {
+        const ruleId = transaction.recurringRuleId;
+        if (ruleId === null) throw new Error('La transacción no pertenece a una suscripción.');
+        const rule = await this.database.recurringRules.get(ruleId);
+        if (rule === undefined) throw new Error('La regla recurrente no existe.');
+        await this.database.transactions.put(transaction);
+        if (rule.categoryId === transaction.categoryId) return;
+        await this.database.recurringRules.put({
+          ...rule,
+          categoryId: transaction.categoryId,
+          updatedAt: transaction.updatedAt,
+        });
+        await this.database.transactions
+          .where('[recurringRuleId+date]')
+          .between([ruleId, transaction.date], [ruleId, '9999-12-31'], false, true)
+          .modify({ categoryId: transaction.categoryId, updatedAt: transaction.updatedAt });
+      },
+    );
+  }
+
   async persistOccurrences(batches: RecurringOccurrenceBatch[]): Promise<number> {
     return this.database.transaction(
       'rw',

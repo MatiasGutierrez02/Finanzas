@@ -19,6 +19,8 @@ import { DexieRecurringRuleRepository } from '@/repositories/dexie/dexie-recurri
 import { DexieScheduleRepository } from '@/repositories/dexie/dexie-schedule.repository';
 import { DexieTransactionRepository } from '@/repositories/dexie/dexie-transaction.repository';
 import { toLocalDate } from '@/utils/dates';
+import { CategoryService } from '@/features/categories/services/category.service';
+import type { CategoryId } from '@/models/common';
 
 const timestamp = '2026-01-31T12:00:00.000Z' as IsoTimestamp;
 let database: FinancesDatabase;
@@ -122,6 +124,35 @@ describe('backup service', () => {
 
     expect(await database.categories.where('id').equals('category:suscripciones').count()).toBe(1);
     expect(await database.categories.where('id').equals('category:otros').count()).toBe(1);
+  });
+
+  it('preserves custom categories and migrates valid version 1 backups safely', async () => {
+    const categories = new CategoryService({
+      repository: new DexieCategoryRepository(database),
+      createId: () => 'category:custom:internet' as CategoryId,
+      now: () => timestamp,
+    });
+    const custom = await categories.create('Internet');
+    const current = backupService.parse((await backupService.exportBackup()).json);
+    const legacy = structuredClone(current) as BackupDocument;
+    legacy.schemaVersion = 1;
+    for (const category of legacy.categories)
+      delete (category as Partial<typeof category>).isSystem;
+
+    const migrated = backupService.parse(JSON.stringify(legacy));
+    await backupService.importBackup(migrated);
+
+    expect(migrated.schemaVersion).toBe(BACKUP_SCHEMA_VERSION);
+    expect(await database.categories.get(custom.id)).toMatchObject({
+      id: custom.id,
+      name: 'Internet',
+      color: custom.color,
+      icon: custom.icon,
+      isSystem: false,
+    });
+    expect(await database.categories.get('category:otros' as CategoryId)).toMatchObject({
+      isSystem: true,
+    });
   });
 
   it('rejects malformed JSON and incompatible versions', async () => {

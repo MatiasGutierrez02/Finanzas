@@ -25,6 +25,7 @@ import { DexieRecurringRuleRepository } from '@/repositories/dexie/dexie-recurri
 import { DexieScheduleRepository } from '@/repositories/dexie/dexie-schedule.repository';
 import { DexieTransactionRepository } from '@/repositories/dexie/dexie-transaction.repository';
 import { toLocalDate } from '@/utils/dates';
+import { toCategoryId } from '@/utils/ids';
 import { normalizeSubscriptions } from '@/db/normalization/subscriptions';
 
 const timestamp = '2026-01-31T12:00:00.000Z' as IsoTimestamp;
@@ -140,7 +141,12 @@ describe('monthly schedules', () => {
       .sortBy('date');
 
     expect(first).toMatchObject({ normalized: 2, removed: 1 });
-    expect(second).toEqual({ normalized: 0, removed: 0, repairedRules: 0 });
+    expect(second).toEqual({
+      normalized: 0,
+      removed: 0,
+      repairedRules: 0,
+      synchronizedCategories: 0,
+    });
     expect(occurrences.map(({ date }) => date)).toEqual([
       '2026-08-18',
       '2026-09-01',
@@ -158,6 +164,63 @@ describe('monthly schedules', () => {
     const [subscription] = await createManagementService(toLocalDate('2026-08-18')).list();
 
     expect(subscription?.nextOccurrenceDate).toBe('2026-09-01');
+  });
+
+  it('synchronizes an edited recurring occurrence with its rule and future occurrences', async () => {
+    const service = createService();
+    const created = await service.create(form('subscription', '2', '2026-08-18'));
+    const recurrence = new MonthlyRecurrenceService({
+      recurringRules: new DexieRecurringRuleRepository(database),
+      schedules: new DexieScheduleRepository(database),
+      createTransactionId: nextTransactionId,
+      now: () => timestamp,
+    });
+    await recurrence.generateThrough(toLocalDate('2026-10-31'));
+
+    await service.update(created.id, {
+      ...form('subscription', '2', '2026-08-18'),
+      categoryId: 'category:suscripciones',
+    });
+
+    expect(await database.recurringRules.get(ruleId)).toMatchObject({
+      categoryId: 'category:suscripciones',
+    });
+    expect(
+      (await database.transactions.where('recurringRuleId').equals(ruleId).toArray()).map(
+        ({ categoryId }) => categoryId,
+      ),
+    ).toEqual(['category:suscripciones', 'category:suscripciones', 'category:suscripciones']);
+    expect(
+      (await createManagementService(toLocalDate('2026-08-18')).list())[0]?.category.name,
+    ).toBe('Suscripciones');
+  });
+
+  it('normalizes the legacy Educación to Suscripciones mismatch once without changing history', async () => {
+    await createService().create(form('subscription', '2', '2026-08-18'));
+    await database.recurringRules.update(ruleId, {
+      categoryId: toCategoryId('category:educacion'),
+    });
+    const occurrence = await database.transactions.where('recurringRuleId').equals(ruleId).first();
+    if (occurrence === undefined) throw new Error('Fixture inválido');
+    await database.transactions.update(occurrence.id, {
+      categoryId: toCategoryId('category:suscripciones'),
+    });
+
+    expect(await normalizeSubscriptions(database, toLocalDate('2026-08-18'))).toMatchObject({
+      synchronizedCategories: 1,
+      removed: 0,
+    });
+    expect(await normalizeSubscriptions(database, toLocalDate('2026-08-18'))).toMatchObject({
+      synchronizedCategories: 0,
+      removed: 0,
+    });
+    expect(await database.recurringRules.get(ruleId)).toMatchObject({
+      categoryId: 'category:suscripciones',
+    });
+    expect(await database.transactions.get(occurrence.id)).toMatchObject({
+      id: occurrence.id,
+      categoryId: 'category:suscripciones',
+    });
   });
 
   it('removes inherited future rows for a paused rule while preserving its history', async () => {

@@ -154,7 +154,11 @@ export class TransactionService {
       updatedAt: this.now(),
     };
 
-    await this.dependencies.transactions.put(transaction);
+    if (transaction.recurringRuleId === null) {
+      await this.dependencies.transactions.put(transaction);
+    } else {
+      await this.dependencies.schedules.updateRecurringOccurrence(transaction);
+    }
     return transaction;
   }
 

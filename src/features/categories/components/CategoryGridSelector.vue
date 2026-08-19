@@ -23,18 +23,78 @@
         size="18px"
       />
     </button>
+    <button
+      class="category-option"
+      type="button"
+      aria-label="Agregar categoría"
+      @click="openCreate"
+    >
+      <span class="category-icon add-icon"><q-icon name="add" size="28px" /></span>
+      <span class="category-name">Agregar</span>
+    </button>
   </div>
+
+  <q-dialog v-model="creating">
+    <q-card class="create-card">
+      <q-card-section><div class="text-h6">Nueva categoría</div></q-card-section>
+      <q-card-section class="q-pt-none">
+        <q-input
+          v-model="name"
+          outlined
+          autofocus
+          label="Nombre"
+          maxlength="40"
+          :error="error !== null"
+          :error-message="error ?? undefined"
+          @keyup.enter="create"
+        />
+      </q-card-section>
+      <q-card-actions align="right">
+        <q-btn v-close-popup flat no-caps label="Cancelar" />
+        <q-btn unelevated no-caps color="primary" label="Crear" :loading="saving" @click="create" />
+      </q-card-actions>
+    </q-card>
+  </q-dialog>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import type { Category } from '@/models/category';
 import { resolveCategoryIcon } from '@/features/categories/utils/category-icons';
+import { categoryService } from '@/features/categories/services/category.service';
 
 defineProps<{
   categories: Category[];
 }>();
 
 const model = defineModel<string>({ required: true });
+const emit = defineEmits<{ created: [category: Category] }>();
+const creating = ref(false);
+const saving = ref(false);
+const name = ref('');
+const error = ref<string | null>(null);
+
+function openCreate(): void {
+  name.value = '';
+  error.value = null;
+  creating.value = true;
+}
+
+async function create(): Promise<void> {
+  if (saving.value) return;
+  saving.value = true;
+  error.value = null;
+  try {
+    const category = await categoryService.create(name.value);
+    emit('created', category);
+    model.value = category.id;
+    creating.value = false;
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'No pudimos crear la categoría.';
+  } finally {
+    saving.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -113,6 +173,18 @@ const model = defineModel<string>({ required: true });
   right: 5px;
   background: var(--app-surface);
   border-radius: 50%;
+}
+
+.add-icon {
+  color: var(--q-primary);
+  background: var(--app-selected);
+  border: 2px dashed currentColor;
+  box-shadow: none;
+}
+
+.create-card {
+  width: min(92vw, 420px);
+  border-radius: 18px;
 }
 
 @media (max-width: 360px) {

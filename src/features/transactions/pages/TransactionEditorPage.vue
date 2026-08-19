@@ -19,6 +19,7 @@
         :mode="isEditing ? 'edit' : 'create'"
         :saving="saving"
         @submit="submit"
+        @category-created="categories.push($event)"
       />
 
       <q-banner v-else class="error-banner" rounded>{{ errorMessage }}</q-banner>

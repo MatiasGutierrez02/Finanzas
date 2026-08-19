@@ -46,6 +46,7 @@ function legacyCategory(id: CategoryId, icon: string | null): Category {
     name: id === toCategoryId('category:comida') ? 'Comida' : 'Venta',
     color: '#123456',
     icon,
+    isSystem: true,
     isActive: true,
     sortOrder: 0,
     createdAt: timestamp,
@@ -141,6 +142,28 @@ describe('category seed', () => {
 
     expect(await database.categories.get(foodId)).toMatchObject({ icon: 'restaurant' });
     expect(await database.categories.get(saleId)).toMatchObject({ icon: 'custom_sale' });
+  });
+
+  it('marks existing defaults as system categories and preserves legacy custom categories', async () => {
+    const legacyDatabase = new Dexie(database.name);
+    legacyDatabase.version(3).stores(DATABASE_STORES);
+    const system = legacyCategory(toCategoryId('category:comida'), 'restaurant');
+    const custom = {
+      ...legacyCategory(toCategoryId('category:custom:internet'), 'category'),
+      name: 'Internet',
+    };
+    await legacyDatabase
+      .table<Category>('categories')
+      .bulkAdd([
+        { ...system, isSystem: undefined } as unknown as Category,
+        { ...custom, isSystem: undefined } as unknown as Category,
+      ]);
+    legacyDatabase.close();
+
+    await database.open();
+
+    expect(await database.categories.get(system.id)).toMatchObject({ isSystem: true });
+    expect(await database.categories.get(custom.id)).toMatchObject({ isSystem: false });
   });
 });
 

@@ -56,6 +56,7 @@ function createDefaultCategory(
     name: definition.name,
     color: definition.color,
     icon: definition.icon,
+    isSystem: true,
     isActive: true,
     sortOrder,
     createdAt: timestamp,

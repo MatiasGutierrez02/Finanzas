@@ -46,6 +46,10 @@ export function newInstallmentGroupId(cryptoSource?: WebCryptoSource): Installme
   return generateUuid(cryptoSource) as InstallmentGroupId;
 }
 
+export function newCategoryId(cryptoSource?: WebCryptoSource): CategoryId {
+  return `category:custom:${generateUuid(cryptoSource)}` as CategoryId;
+}
+
 export function toCategoryId(value: string): CategoryId {
   if (value.trim().length === 0) {
     throw new RangeError('El identificador de categoría no puede estar vacío.');

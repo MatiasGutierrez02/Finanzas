@@ -10,6 +10,7 @@ export interface RecurringOccurrenceBatch {
 export interface ScheduleRepository {
   createRecurring(rule: RecurringRule, firstOccurrence: Transaction): Promise<void>;
   createInstallments(installments: Transaction[]): Promise<void>;
+  updateRecurringOccurrence(transaction: Transaction): Promise<void>;
   persistOccurrences(batches: RecurringOccurrenceBatch[]): Promise<number>;
   updateRuleAndRemoveFutureOccurrences(rule: RecurringRule, today: LocalDate): Promise<number>;
   resumeRule(id: RecurringRuleId, today: LocalDate, timestamp: IsoTimestamp): Promise<boolean>;

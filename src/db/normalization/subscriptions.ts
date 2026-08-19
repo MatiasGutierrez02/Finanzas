@@ -8,6 +8,7 @@ export interface SubscriptionNormalizationResult {
   normalized: number;
   removed: number;
   repairedRules: number;
+  synchronizedCategories: number;
 }
 
 function periodOf(transaction: Transaction): YearMonth {
@@ -28,12 +29,27 @@ export async function normalizeSubscriptions(
     let normalized = 0;
     let removed = 0;
     let repairedRules = 0;
+    let synchronizedCategories = 0;
 
     for (const rule of rules) {
       const occurrences = await database.transactions
         .where('recurringRuleId')
         .equals(rule.id)
         .sortBy('date');
+      const latestPastOccurrence = occurrences.filter(({ date }) => date <= today).at(-1);
+      if (
+        rule.categoryId === 'category:educacion' &&
+        latestPastOccurrence?.categoryId === 'category:suscripciones'
+      ) {
+        rule.categoryId = latestPastOccurrence.categoryId;
+        rule.updatedAt = timestamp;
+        await database.recurringRules.put(rule);
+        await database.transactions
+          .where('[recurringRuleId+date]')
+          .between([rule.id, today], [rule.id, '9999-12-31'], false, true)
+          .modify({ categoryId: latestPastOccurrence.categoryId, updatedAt: timestamp });
+        synchronizedCategories += 1;
+      }
       const retained: Transaction[] = [];
       const futureByPeriod = new Map<YearMonth, Transaction[]>();
 
@@ -91,6 +107,6 @@ export async function normalizeSubscriptions(
       }
     }
 
-    return { normalized, removed, repairedRules };
+    return { normalized, removed, repairedRules, synchronizedCategories };
   });
 }

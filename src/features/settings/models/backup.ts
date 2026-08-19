@@ -4,7 +4,7 @@ import type { RecurringRule } from '@/models/recurring-rule';
 import type { AppSettingRecord } from '@/models/settings';
 import type { Transaction } from '@/models/transaction';
 
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
 
 export interface BackupData {
   transactions: Transaction[];
@@ -14,7 +14,7 @@ export interface BackupData {
 }
 
 export interface BackupDocument extends BackupData {
-  schemaVersion: typeof BACKUP_SCHEMA_VERSION;
+  schemaVersion: number;
   exportedAt: IsoTimestamp;
   appVersion: string;
 }

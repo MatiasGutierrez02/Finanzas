@@ -19,6 +19,17 @@
             </q-item-section>
             <q-item-section side><q-icon name="chevron_right" /></q-item-section>
           </q-item>
+          <q-separator />
+          <q-item clickable v-ripple :to="{ name: 'categories-settings' }">
+            <q-item-section avatar
+              ><q-icon name="category" color="primary" size="28px"
+            /></q-item-section>
+            <q-item-section>
+              <q-item-label class="text-weight-medium">Categorías</q-item-label>
+              <q-item-label caption>Editá o eliminá tus categorías personalizadas.</q-item-label>
+            </q-item-section>
+            <q-item-section side><q-icon name="chevron_right" /></q-item-section>
+          </q-item>
         </q-list>
       </q-card>
 

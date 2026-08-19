@@ -8,6 +8,7 @@ import type { Transaction } from '@/models/transaction';
 import { DATABASE_NAME, DATABASE_STORES, DATABASE_VERSION } from './schema';
 import { addDefaultCategoryIcons } from './migrations/version-2';
 import { repairDefaultCategoryIcons } from './migrations/version-3';
+import { markSystemCategories } from './migrations/version-4';
 
 export class FinancesDatabase extends Dexie {
   transactions!: Table<Transaction, Transaction['id']>;
@@ -20,7 +21,8 @@ export class FinancesDatabase extends Dexie {
 
     this.version(1).stores(DATABASE_STORES);
     this.version(2).stores(DATABASE_STORES).upgrade(addDefaultCategoryIcons);
-    this.version(DATABASE_VERSION).stores(DATABASE_STORES).upgrade(repairDefaultCategoryIcons);
+    this.version(3).stores(DATABASE_STORES).upgrade(repairDefaultCategoryIcons);
+    this.version(DATABASE_VERSION).stores(DATABASE_STORES).upgrade(markSystemCategories);
   }
 }
 

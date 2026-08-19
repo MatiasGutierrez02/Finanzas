@@ -1,5 +1,5 @@
 export const DATABASE_NAME = 'FinanzasDB';
-export const DATABASE_VERSION = 3;
+export const DATABASE_VERSION = 4;
 
 export const DATABASE_STORES = {
   transactions:

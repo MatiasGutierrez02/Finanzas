@@ -5,6 +5,7 @@ export interface Category {
   name: string;
   color: `#${string}`;
   icon: string | null;
+  isSystem: boolean;
   isActive: boolean;
   sortOrder: number;
   createdAt: IsoTimestamp;

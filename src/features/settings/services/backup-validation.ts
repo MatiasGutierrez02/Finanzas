@@ -2,6 +2,9 @@ import { BACKUP_SCHEMA_VERSION, type BackupDocument } from '../models/backup';
 import { SETTING_KEYS } from '@/models/settings';
 import { TRANSACTION_TYPES } from '@/models/transaction';
 import { toLocalDate } from '@/utils/dates';
+import { DEFAULT_CATEGORY_DEFINITIONS } from '@/db/seed/default-categories';
+
+const systemCategoryIds = new Set(DEFAULT_CATEGORY_DEFINITIONS.map(({ id }) => id));
 
 export class BackupValidationError extends Error {
   constructor(message: string) {
@@ -58,7 +61,7 @@ function unique(values: string[], label: string): void {
 
 export function validateBackupDocument(input: unknown): BackupDocument {
   const root = record(input, 'El backup');
-  if (root.schemaVersion !== BACKUP_SCHEMA_VERSION)
+  if (root.schemaVersion !== 1 && root.schemaVersion !== BACKUP_SCHEMA_VERSION)
     throw new BackupValidationError(
       `Versión de backup incompatible: ${String(root.schemaVersion)}.`,
     );
@@ -77,6 +80,8 @@ export function validateBackupDocument(input: unknown): BackupDocument {
       throw new BackupValidationError(`categories[${index}].color no es válido.`);
     if (value.icon !== null && typeof value.icon !== 'string')
       throw new BackupValidationError(`categories[${index}].icon no es válido.`);
+    if (root.schemaVersion === BACKUP_SCHEMA_VERSION && typeof value.isSystem !== 'boolean')
+      throw new BackupValidationError(`categories[${index}].isSystem no es válido.`);
     if (typeof value.isActive !== 'boolean' || !Number.isInteger(value.sortOrder))
       throw new BackupValidationError(`categories[${index}] tiene campos inválidos.`);
     iso(value.createdAt, `categories[${index}].createdAt`);
@@ -216,5 +221,17 @@ export function validateBackupDocument(input: unknown): BackupDocument {
     return key;
   });
   unique(settingKeys, 'settings');
-  return input as BackupDocument;
+  return {
+    ...(input as BackupDocument),
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    categories: categories.map((item) => {
+      const category = { ...(item as BackupDocument['categories'][number]) };
+      category.isSystem = systemCategoryIds.has(category.id)
+        ? true
+        : root.schemaVersion === 1
+          ? false
+          : category.isSystem;
+      return category;
+    }),
+  };
 }

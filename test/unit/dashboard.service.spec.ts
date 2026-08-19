@@ -21,6 +21,7 @@ function category(id: CategoryId, name: string, color: `#${string}`): Category {
     name,
     color,
     icon: null,
+    isSystem: true,
     isActive: true,
     sortOrder: 0,
     createdAt: timestamp,

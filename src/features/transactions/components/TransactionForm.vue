@@ -33,7 +33,11 @@
       :rules="[(value) => value.length > 0 || 'Seleccioná una categoría']"
     >
       <template #control>
-        <CategoryGridSelector v-model="form.categoryId" :categories="categories" />
+        <CategoryGridSelector
+          v-model="form.categoryId"
+          :categories="categories"
+          @created="$emit('category-created', $event)"
+        />
       </template>
     </q-field>
 
@@ -88,7 +92,8 @@
           :rules="[(value) => validateInstallmentCount(value)]"
         />
         <div v-if="mode === 'edit' && form.schedule !== 'none'" class="text-caption text-grey-7">
-          Los cambios se aplicarán solamente a este movimiento.
+          Los cambios se aplican a este movimiento. En suscripciones, la categoría también se usará
+          en las próximas ocurrencias.
         </div>
       </q-card-section>
     </q-card>
@@ -133,6 +138,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   submit: [value: TransactionFormValue];
+  'category-created': [category: Category];
 }>();
 const $q = useQuasar();
 
