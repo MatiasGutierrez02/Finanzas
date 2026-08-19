@@ -39,12 +39,13 @@
                 <div class="text-subtitle1 text-weight-bold ellipsis">
                   {{ subscription.category.name }}
                 </div>
-                <q-chip
-                  dense
-                  :color="subscription.rule.isActive ? 'positive' : 'grey-7'"
-                  text-color="white"
-                  :label="subscription.rule.isActive ? 'Activa' : 'Pausada'"
-                />
+                <span
+                  class="subscription-status"
+                  :class="subscription.rule.isActive ? 'is-active' : 'is-paused'"
+                >
+                  <span class="status-dot" aria-hidden="true" />
+                  {{ subscription.rule.isActive ? 'Activa' : 'Pausada' }}
+                </span>
               </div>
               <div class="text-h6 text-weight-bold q-mt-xs">
                 {{ formatArs(subscription.rule.amountCents) }}
@@ -235,6 +236,30 @@ onMounted(load);
 
 .min-width-zero {
   min-width: 0;
+}
+
+.subscription-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.subscription-status.is-active {
+  color: #2e7d32;
+}
+
+.subscription-status.is-paused {
+  color: #757575;
 }
 
 .error-banner {

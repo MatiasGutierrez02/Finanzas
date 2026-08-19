@@ -1,6 +1,8 @@
 import type { FinancesDatabase } from '@/db/finances-database';
 import type { BackupData } from '@/features/settings/models/backup';
 import type { BackupRepository } from '@/repositories/contracts/backup.repository';
+import { normalizeSubscriptions } from '@/db/normalization/subscriptions';
+import { todayLocalDate } from '@/utils/dates';
 
 export class DexieBackupRepository implements BackupRepository {
   constructor(private readonly database: FinancesDatabase) {}
@@ -45,6 +47,7 @@ export class DexieBackupRepository implements BackupRepository {
         await this.database.recurringRules.bulkAdd(data.recurringRules);
         await this.database.transactions.bulkAdd(data.transactions);
         await this.database.settings.bulkAdd(data.settings);
+        await normalizeSubscriptions(this.database, todayLocalDate());
       },
     );
   }

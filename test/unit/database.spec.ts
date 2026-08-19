@@ -65,7 +65,7 @@ afterEach(async () => {
 
 describe('category seed', () => {
   it('adds all defaults once and preserves later customizations', async () => {
-    expect(await seedDefaultCategories(database)).toBe(19);
+    expect(await seedDefaultCategories(database)).toBe(21);
 
     const foodId = toCategoryId('category:comida');
     await database.categories.update(foodId, {
@@ -75,11 +75,39 @@ describe('category seed', () => {
     });
 
     expect(await seedDefaultCategories(database)).toBe(0);
-    expect(await database.categories.count()).toBe(19);
+    expect(await database.categories.count()).toBe(21);
     expect(await database.categories.get(foodId)).toMatchObject({
       color: '#000000',
       icon: 'custom_food',
       name: 'Alimentos',
+    });
+  });
+
+  it('adds the new subscription and fallback categories once without overwriting them', async () => {
+    await seedDefaultCategories(database);
+    const subscriptionsId = toCategoryId('category:suscripciones');
+    const othersId = toCategoryId('category:otros');
+
+    expect(await database.categories.get(subscriptionsId)).toMatchObject({
+      name: 'Suscripciones',
+      color: '#00695C',
+      icon: 'subscriptions',
+      isActive: true,
+      sortOrder: 19,
+    });
+    expect(await database.categories.get(othersId)).toMatchObject({
+      name: 'Otros',
+      color: '#6A1B9A',
+      icon: 'category',
+      isActive: true,
+      sortOrder: 20,
+    });
+
+    await database.categories.update(othersId, { name: 'Varios', color: '#010203' });
+    expect(await seedDefaultCategories(database)).toBe(0);
+    expect(await database.categories.get(othersId)).toMatchObject({
+      name: 'Varios',
+      color: '#010203',
     });
   });
 

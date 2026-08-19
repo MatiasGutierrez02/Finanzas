@@ -51,11 +51,12 @@ export class SubscriptionManagementService {
       .map((rule) => {
         const category = categoriesById.get(rule.categoryId);
         if (category === undefined) return null;
-        const baseline = rule.lastGeneratedPeriod ?? toYearMonth(today);
         return {
           rule,
           category,
-          nextOccurrenceDate: rule.isActive ? toLocalDate(`${nextPeriod(baseline)}-01`) : null,
+          nextOccurrenceDate: rule.isActive
+            ? toLocalDate(`${nextPeriod(toYearMonth(today))}-01`)
+            : null,
         };
       })
       .filter((item): item is ManagedSubscription => item !== null)
@@ -73,14 +74,14 @@ export class SubscriptionManagementService {
   }
 
   async resume(id: RecurringRuleId): Promise<void> {
-    const rule = await this.getManageableRule(id);
+    await this.getManageableRule(id);
     const today = (this.dependencies.today ?? todayLocalDate)();
-    await this.dependencies.recurringRules.put({
-      ...rule,
-      isActive: true,
-      lastGeneratedPeriod: toYearMonth(today),
-      updatedAt: (this.dependencies.now ?? nowIsoTimestamp)(),
-    });
+    const resumed = await this.dependencies.schedules.resumeRule(
+      id,
+      today,
+      (this.dependencies.now ?? nowIsoTimestamp)(),
+    );
+    if (!resumed) throw new SubscriptionNotFoundError();
   }
 
   async cancel(id: RecurringRuleId): Promise<number> {

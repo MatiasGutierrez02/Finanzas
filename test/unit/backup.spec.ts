@@ -113,6 +113,17 @@ describe('backup service', () => {
     );
   });
 
+  it('includes the new default categories in a backup and restores them once', async () => {
+    const document = backupService.parse((await backupService.exportBackup()).json);
+    expect(document.categories.filter(({ id }) => id === 'category:suscripciones')).toHaveLength(1);
+    expect(document.categories.filter(({ id }) => id === 'category:otros')).toHaveLength(1);
+
+    await backupService.importBackup(document);
+
+    expect(await database.categories.where('id').equals('category:suscripciones').count()).toBe(1);
+    expect(await database.categories.where('id').equals('category:otros').count()).toBe(1);
+  });
+
   it('rejects malformed JSON and incompatible versions', async () => {
     expect(() => backupService.parse('{broken')).toThrow(BackupValidationError);
     const document = backupService.parse((await backupService.exportBackup()).json);
@@ -146,6 +157,32 @@ describe('backup service', () => {
         ({ date }) => date,
       ),
     ).toEqual(['2026-01-31', '2026-02-01', '2026-03-01']);
+  });
+
+  it('normalizes legacy materialized future occurrences during import', async () => {
+    await transactionService().create(form('subscription'));
+    const recurrence = new MonthlyRecurrenceService({
+      recurringRules: new DexieRecurringRuleRepository(database),
+      schedules: new DexieScheduleRepository(database),
+      createTransactionId: nextId,
+      now: () => timestamp,
+    });
+    await recurrence.generateThrough(toLocalDate('2099-10-31'));
+    const document = structuredClone(
+      backupService.parse((await backupService.exportBackup()).json),
+    ) as BackupDocument;
+    const future = document.transactions.find(
+      ({ occurrenceKey }) => occurrenceKey === 'rule-1:2099-10',
+    );
+    if (future === undefined) throw new Error('Fixture inválido');
+    future.date = toLocalDate('2099-10-18');
+
+    await backupService.importBackup(backupService.parse(JSON.stringify(document)));
+
+    expect((await database.transactions.get(future.id))?.date).toBe('2099-10-01');
+    expect(
+      (await database.recurringRules.get('rule-1' as RecurringRuleId))?.lastGeneratedPeriod,
+    ).toBe('2099-10');
   });
 
   it('preserves a definitively cancelled rule so historical references remain valid', async () => {

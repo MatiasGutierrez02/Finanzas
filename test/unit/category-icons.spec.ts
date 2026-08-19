@@ -26,6 +26,8 @@ const expectedIcons = {
   Devolución: 'currency_exchange',
   Venta: 'sell',
   Sueldo: 'payments',
+  Suscripciones: 'subscriptions',
+  Otros: 'category',
 } as const;
 
 describe('category icons', () => {

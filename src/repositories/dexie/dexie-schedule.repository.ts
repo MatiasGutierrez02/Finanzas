@@ -1,5 +1,5 @@
 import type { FinancesDatabase } from '@/db/finances-database';
-import type { LocalDate } from '@/models/common';
+import type { IsoTimestamp, LocalDate, RecurringRuleId } from '@/models/common';
 import type { RecurringRule } from '@/models/recurring-rule';
 import type { Transaction } from '@/models/transaction';
 import type {
@@ -87,6 +87,13 @@ export class DexieScheduleRepository implements ScheduleRepository {
       'rw',
       [this.database.recurringRules, this.database.transactions],
       async () => {
+        const currentRule = await this.database.recurringRules.get(rule.id);
+        if (
+          currentRule === undefined ||
+          (currentRule.cancelledAt != null && rule.cancelledAt == null)
+        ) {
+          return 0;
+        }
         const removed = await this.database.transactions
           .where('[recurringRuleId+date]')
           .between([rule.id, today], [rule.id, '9999-12-31'], false, true)
@@ -95,5 +102,23 @@ export class DexieScheduleRepository implements ScheduleRepository {
         return removed;
       },
     );
+  }
+
+  async resumeRule(
+    id: RecurringRuleId,
+    today: LocalDate,
+    timestamp: IsoTimestamp,
+  ): Promise<boolean> {
+    return this.database.transaction('rw', this.database.recurringRules, async () => {
+      const currentRule = await this.database.recurringRules.get(id);
+      if (currentRule === undefined || currentRule.cancelledAt != null) return false;
+      await this.database.recurringRules.put({
+        ...currentRule,
+        isActive: true,
+        lastGeneratedPeriod: today.slice(0, 7) as RecurringRule['lastGeneratedPeriod'],
+        updatedAt: timestamp,
+      });
+      return true;
+    });
   }
 }

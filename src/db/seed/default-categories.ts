@@ -37,6 +37,13 @@ export const DEFAULT_CATEGORY_DEFINITIONS: readonly DefaultCategoryDefinition[] 
   },
   { id: 'category:venta', name: 'Venta', color: '#00897B', icon: 'sell' },
   { id: 'category:sueldo', name: 'Sueldo', color: '#2E7D32', icon: 'payments' },
+  {
+    id: 'category:suscripciones',
+    name: 'Suscripciones',
+    color: '#00695C',
+    icon: 'subscriptions',
+  },
+  { id: 'category:otros', name: 'Otros', color: '#6A1B9A', icon: 'category' },
 ] as const;
 
 function createDefaultCategory(
